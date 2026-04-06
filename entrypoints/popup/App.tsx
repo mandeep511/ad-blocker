@@ -1,35 +1,86 @@
-import { useState } from 'react';
-import reactLogo from '@/assets/react.svg';
-import wxtLogo from '/wxt.svg';
-import './App.css';
+import { useState, useEffect } from 'react';
+import { useSettings } from '../../ui/hooks/useSettings';
+import { useStats } from '../../ui/hooks/useStats';
+import { Toggle } from '../../ui/components/Toggle';
+import { Counter } from '../../ui/components/Counter';
+import { PlatformToggle } from '../../ui/components/PlatformToggle';
+import { SiteToggle } from '../../ui/components/SiteToggle';
 
-function App() {
-  const [count, setCount] = useState(0);
+export default function App() {
+  const { settings, updateSettings, loading } = useSettings();
+  const stats = useStats();
+  const [currentHostname, setCurrentHostname] = useState<string>('');
+
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+      if (tabs[0]?.url) {
+        try {
+          setCurrentHostname(new URL(tabs[0].url).hostname);
+        } catch {
+          // Invalid URL (e.g., chrome:// pages)
+        }
+      }
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  const siteEnabled = !settings.disabledSites.includes(currentHostname);
 
   return (
-    <>
-      <div>
-        <a href="https://wxt.dev" target="_blank">
-          <img src={wxtLogo} className="logo" alt="WXT logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <img src="/icon/48.png" alt="Ad Blocker Pro" className="w-8 h-8" />
+        <h1 className="text-lg font-bold">Ad Blocker Pro</h1>
       </div>
-      <h1>WXT + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+
+      {/* Global toggle */}
+      <Toggle
+        label="Ad Blocking"
+        checked={settings.enabled}
+        onChange={(enabled) => updateSettings({ enabled })}
+      />
+
+      {/* Stats counter */}
+      <Counter total={stats.totalBlocked} session={stats.sessionBlocked} />
+
+      {/* Site toggle */}
+      {currentHostname && (
+        <SiteToggle
+          hostname={currentHostname}
+          enabled={siteEnabled}
+          onToggle={(enabled) => {
+            const disabledSites = enabled
+              ? settings.disabledSites.filter((s) => s !== currentHostname)
+              : [...settings.disabledSites, currentHostname];
+            updateSettings({ disabledSites });
+          }}
+          disabled={!settings.enabled}
+        />
+      )}
+
+      {/* OTT Platform toggles */}
+      <PlatformToggle
+        platforms={settings.platforms}
+        onToggle={(platform, enabled) =>
+          updateSettings({
+            platforms: { ...settings.platforms, [platform]: enabled },
+          })
+        }
+        disabled={!settings.enabled}
+      />
+
+      {/* Footer */}
+      <div className="text-center text-xs text-gray-500 pt-2 border-t border-gray-700">
+        v1.0.0
       </div>
-      <p className="read-the-docs">
-        Click on the WXT and React logos to learn more
-      </p>
-    </>
+    </div>
   );
 }
-
-export default App;
