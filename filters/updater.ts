@@ -1,9 +1,8 @@
 import { getEnabledLists, type FilterList } from './lists';
-import { createEngine, compileFiltersToDNR, serializeEngine } from './compiler';
+import { compileFiltersToDNR } from './compiler';
 import { logger } from '../utils/logger';
 
 const LAST_UPDATED_KEY = 'filterListsLastUpdated';
-const CACHED_ENGINE_KEY = 'cachedEngine';
 const UPDATE_INTERVAL_HOURS = 24;
 
 interface UpdateResult {
@@ -43,10 +42,7 @@ export async function fetchAndCompileFilters(): Promise<UpdateResult> {
       addRules: cappedRules as chrome.declarativeNetRequest.Rule[],
     });
 
-    const engine = createEngine(combined);
-    const serialized = serializeEngine(engine);
     await chrome.storage.local.set({
-      [CACHED_ENGINE_KEY]: Array.from(serialized),
       [LAST_UPDATED_KEY]: Date.now(),
     });
 
